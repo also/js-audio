@@ -122,4 +122,24 @@ if (!window.DataView) {
     };
     window.DataView = DataView;
 }
+
+// TODO opera?
+var slice = Blob.prototype.webkitSlice || Blob.prototype.mozSlice;
+if (!slice) {
+    if (window.BlobBuilder) {
+        var bb = new BlobBuilder();
+        bb.append("abcd");
+        if (bb.getBlob().slice(2, 2).size !== 2) {
+            slice = Blob.prototype.slice;
+        }
+    }
+    if (!slice) {
+        var origSlice = Blob.prototype.slice;
+        slice = function slice(start, end) {
+            return origSlice.apply(this, [start, end - start]);
+        };
+    }
+}
+Blob.prototype.slice = slice;
+
 })();
