@@ -1,3 +1,50 @@
+function bytesToString(bytes) {
+    return String.fromCharCode.apply(String, Array.prototype.slice.apply(bytes));
+}
+
+function extractAsciiString(buffer, start, length) {
+    return bytesToString(new Uint8Array(buffer, start, length));
+}
+
+function extractUtf16String(buffer, start, length) {
+    var sourceChars = new Uint8Array(buffer, start, length);
+    // TODO only copy if necessary
+    var chars = new Uint8Array(sourceChars.length);
+    chars.set(sourceChars);
+
+    // TODO handle BOM
+    var values = new Uint16Array(chars.buffer);
+
+    return decodeUtf16(values.subarray(1));
+}
+
+// http://www.ietf.org/rfc/rfc2781.txt
+function decodeUtf16(w) {
+    var i = 0;
+    var len = w.length;
+    var w1, w2;
+    var charCodes = [];
+    while (i < len) {
+        var w1 = w[i++];
+        if ((w1 & 0xF800) !== 0xD800) { // w1 < 0xD800 || w1 > 0xDFFF
+            charCodes.push(w1);
+            continue;
+        }
+        if ((w1 & 0xFC00) === 0xD800) { // w1 >= 0xD800 && w1 <= 0xDBFF
+            throw new RangeError('Invalid octet 0x' + w1.toString(16) + ' at offset ' + (i - 1));
+        }
+        if (i === len) {
+            throw new RangeError('Expected additional octet');
+        }
+        w2 = w[i++];
+        if ((w2 & 0xFC00) !== 0xDC00) { // w2 < 0xDC00 || w2 > 0xDFFF)
+            throw new RangeError('Invalid octet 0x' + w2.toString(16) + ' at offset ' + (i - 1));
+        }
+        charCodes.push(((w1 & 0x3ff) << 10) + (w2 & 0x3ff) + 0x10000);
+    }
+    return String.fromCharCode.apply(String, charCodes);
+}
+
 function Id3Frame() {}
 
 function Id3Parser (blob) {
