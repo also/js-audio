@@ -1,6 +1,6 @@
 function MpegFrame() {}
 
-function Mp3Reader (blob) {
+function Mp3Reader (blob, offset) {
     var BUFFER_SIZE = 4096;
     var AUDIO_VERSIONS = [2.5, -1, 2, 1];
     var LAYERS = [-1, 3, 2, 1];
@@ -25,17 +25,15 @@ function Mp3Reader (blob) {
     var CHANNEL_MODES;
     var SLOT_SIZES = [-1, 1, 1, 4];
     this.blob = blob;
-    //this.id3Parser = new Id3Parser(blob);
-    
+
     var reader;
-    var offset = 49444;
-    
+
     var frames = [];
     this.frames = frames;
-    
+
     var data = new Uint8Array(0);
     var i = 0;
-    
+
     function read(frameCallback) {
         var done = false;
         while (true) {
@@ -73,7 +71,7 @@ function Mp3Reader (blob) {
                 return;
             }
         }
-        
+
         function readHeader(pos) {
             var a = data[pos + 1];
             var b = data[pos + 2];
@@ -91,7 +89,7 @@ function Mp3Reader (blob) {
             var copyrightBit =      (c & 0x08) >> 3;
             var originalBit =       (c & 0x04) >> 2;
             var emphasis =          (c & 0x03);
-            
+
             var valid = true;
             if (audioVersionId === 1) {
                 valid = false;
@@ -108,7 +106,7 @@ function Mp3Reader (blob) {
             else if (emphasis === 2) {
                 valid = false;
             }
-            
+
             var version, layer, bitrate, samplingRate, samples, slotSize, frameSize, mainDataBegin;
             if (valid) {
                 version = AUDIO_VERSIONS[audioVersionId];
@@ -131,11 +129,11 @@ function Mp3Reader (blob) {
                 }
                 slotSize = layer === 1 ? 4 : 1;
                 frameSize = Math.floor(((samples / 8 * bitrate * 1000) / samplingRate + slotSize * paddingBit) / slotSize) * slotSize;
-                
+
                 var mainDataBeginOffset = pos + 4 + protection * 2;
                 var mainDataBegin = data[mainDataBeginOffset] << 8 + data[mainDataBeginOffset] & 0x80;
             }
-            
+
             var frame = new MpegFrame();
             frame.offset = pos + offset;
             frame.valid = valid;
@@ -159,9 +157,9 @@ function Mp3Reader (blob) {
     }
 
     this.read = read;
-    
+
     var blobOffset = offset;
-    
+
     function getBuffer(samples, context, callback) {
         var start = blobOffset;
         console.log(start);
@@ -187,12 +185,12 @@ function Mp3Reader (blob) {
         }
         read(frameCallback);
     }
-    
+
     this.getBuffer = getBuffer;
-    
+
     var empty = new Float32Array(0);
     var currentBuffer = empty;
-    
+
     function fill(buffer, offset, callback) {
         var written = 0;
         if (currentBuffer.length > 0) {
@@ -210,8 +208,6 @@ function Mp3Reader (blob) {
         }
     }
 }
-
-
 
 function showFrameInfo(frame) {
     console.log('at ' + frame.offset, 'audioVersion', frame.version, 'layer', frame.layer, 'protection?', frame.protection, 'mainDataBegin', frame.mainDataBegin, 'bytes', frame.size, 'next', frame.offset + frame.size);
